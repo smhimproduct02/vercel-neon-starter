@@ -69,12 +69,14 @@ This guide will walk you through deploying a Next.js application with a serverle
     - You should see the "Vercel + Neon + GitHub Starter" page.
     - The database status might say "Not connected or empty" because we haven't run migrations yet.
 
-2.  **Run Migrations (Optional for now)**:
-    - To create the tables in your production database, you can run this locally if you have Node.js installed:
-      ```bash
-      npx prisma migrate deploy
-      ```
-    - *Note: You need to set the `DATABASE_URL` in your local `.env` file to your Neon connection string to do this.*
+2.  **Run Migrations (Cloud Way)**:
+    - Since you don't have Node.js installed locally, we will tell Vercel to run the migrations for you.
+    - Go to your Vercel Project **Settings** > **Build & Development Settings**.
+    - Toggle **Override** for the **Build Command**.
+    - Enter: `npx prisma migrate deploy && next build`
+    - Click **Save**.
+    - Go to **Deployments** and **Redeploy**.
+    - This will apply your database schema to Neon every time you deploy.
 
 ## Local Development (If you install Node.js)
 
@@ -82,3 +84,19 @@ This guide will walk you through deploying a Next.js application with a serverle
 2.  Create a `.env` file with `DATABASE_URL=...`
 3.  Run migrations: `npx prisma migrate dev --name init`
 4.  Start server: `npm run dev`
+
+## Troubleshooting
+
+### Vercel Error: "No Output Directory named 'public' found"
+This happens if Vercel doesn't recognize your project as a Next.js app.
+1.  Go to **Settings** > **Build & Development Settings**.
+2.  Check **Framework Preset**. It should be **Next.js**.
+3.  If it says "Other" or something else, change it to **Next.js** and save.
+4.  Redeploy.
+
+### Vercel Error: 404 Not Found
+This often happens if your code is in a subdirectory (like `vercel-neon-starter`) but Vercel expects it at the root.
+1.  Go to **Settings** > **General**.
+2.  Change **Root Directory** to `vercel-neon-starter`.
+3.  Save and Redeploy.
+
