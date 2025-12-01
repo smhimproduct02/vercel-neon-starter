@@ -16,6 +16,7 @@ export default function Navigation() {
         { name: 'Dashboard', path: '/dashboard', icon: '🏠' },
         { name: 'CRM Implementation', path: '/crm-implementation/dashboard', icon: '📋' },
         { name: 'Devices', path: '/dashboard/segment/devices', icon: '📱' },
+        { name: 'Phone TopUps', path: '/dashboard/segment/phone-topups', icon: '📞' },
         { name: 'Customers', path: '/dashboard/segment/customers', icon: '👥' },
         { name: 'Orders', path: '/dashboard/segment/orders', icon: '🛒' },
         { name: 'Reports', path: '/dashboard/segment/reports', icon: '📊' },

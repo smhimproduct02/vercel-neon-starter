@@ -51,3 +51,24 @@ model SegmentDevice {
   @@index([status])
   @@map("segment_devices")
 }
+
+model PhoneTopUp {
+  id            String    @id @default(cuid())
+  phoneNumber   String    @unique @map("phone_number")
+  simCardId     Int?      @map("sim_card_id")
+  name          String?
+  status        String    @default("Active")
+  wsStatus      String?   @map("ws_status")
+  topUpAmount   String    @default("RM5.00") @map("topup_amount")
+  topUpDate     DateTime? @map("topup_date")
+  renewalDate   DateTime? @map("renewal_date")
+  price         String    @default("RM 5.00")
+  notes         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([wsStatus])
+  @@index([renewalDate])
+  @@map("phone_topups")
+}
