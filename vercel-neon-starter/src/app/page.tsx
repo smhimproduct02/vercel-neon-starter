@@ -1,20 +1,29 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
+    const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+        setError('');
 
         // Simulate login process
         setTimeout(() => {
-            setIsLoading(false);
-            console.log('Login attempt:', { email, password });
+            if (email === 'admin@himwellness.com' && password === 'admin@12345') {
+                console.log('Login successful');
+                router.push('/dashboard');
+            } else {
+                setError('Invalid email or password');
+                setIsLoading(false);
+            }
         }, 1500);
     };
 
@@ -46,6 +55,13 @@ export default function LoginPage() {
                             Welcome back! Please login to your account
                         </p>
                     </div>
+
+                    {/* Error Message */}
+                    {error && (
+                        <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 text-sm text-center animate-fade-in">
+                            {error}
+                        </div>
+                    )}
 
                     {/* Login Form */}
                     <form onSubmit={handleSubmit} className="space-y-6">
