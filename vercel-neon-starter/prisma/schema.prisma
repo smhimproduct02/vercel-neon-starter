@@ -35,3 +35,19 @@ model Owner {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model SegmentDevice {
+  id            String    @id @default(cuid())
+  deviceName    String    @map("device_name")
+  product       String
+  role          String    @default("main")
+  status        String    @default("unknown")
+  assignedCount Int       @default(0) @map("assigned_count")
+  lastSeen      DateTime? @map("last_seen")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([product])
+  @@index([status])
+  @@map("segment_devices")
+}

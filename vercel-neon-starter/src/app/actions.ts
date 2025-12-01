@@ -38,11 +38,13 @@ export async function createDeviceRecord(formData: FormData) {
 
 export async function getDeviceRecords() {
     try {
+        console.log('Fetching device records...');
         const records = await prisma.deviceRecord.findMany({
             orderBy: {
                 createdAt: 'desc',
             },
         });
+        console.log(`Fetched ${records.length} records`);
         return { success: true, data: records };
     } catch (error) {
         console.error('Failed to fetch records:', error);
@@ -114,7 +116,9 @@ export async function deleteDeviceRecord(id: string) {
 
 export async function getDashboardStats() {
     try {
+        console.log('Fetching dashboard stats...');
         const records = await prisma.deviceRecord.findMany();
+        console.log(`Stats: Fetched ${records.length} records`);
 
         const totalRecords = records.length;
         const pairedCount = records.filter(r => r.status === 'PAIRED').length;
@@ -154,16 +158,60 @@ export async function getDashboardStats() {
     }
 }
 
+function parseCSVRow(row: string): string[] {
+    const columns: string[] = [];
+    let current = '';
+    let inQuote = false;
+
+    for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+
+        if (inQuote) {
+            if (char === '"') {
+                // Check for escaped quote
+                if (i + 1 < row.length && row[i + 1] === '"') {
+                    current += '"';
+                    i++; // Skip next quote
+                } else {
+                    inQuote = false;
+                }
+            } else {
+                current += char;
+            }
+        } else {
+            if (char === '"') {
+                inQuote = true;
+            } else if (char === ',') {
+                columns.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+    }
+    columns.push(current.trim());
+    return columns;
+}
+
 export async function syncFromGoogleSheets() {
     try {
+        console.log('Starting Google Sheets sync...');
+
         // Fetch CSV from Google Sheets
         const sheetUrl = 'https://docs.google.com/spreadsheets/d/1L8QhsQ6_dWETGjJPivWOOmAFmfbt2HM_6BRK9yDHa80/export?format=csv&gid=0';
         const response = await fetch(sheetUrl);
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch sheet: ${response.status} ${response.statusText}`);
+        }
+
         const csvText = await response.text();
+        console.log('CSV fetched, length:', csvText.length);
 
         // Parse CSV (skip header row)
         const lines = csvText.trim().split('\n');
         const dataRows = lines.slice(1); // Skip header
+        console.log('Rows to process:', dataRows.length);
 
         let created = 0;
         let updated = 0;
@@ -172,28 +220,37 @@ export async function syncFromGoogleSheets() {
 
         for (const row of dataRows) {
             try {
-                // Parse CSV row (handle quoted fields)
-                const columns = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
-                const cleanColumns = columns.map(col => col.replace(/^"|"$/g, '').trim());
+                // Parse CSV row using robust parser
+                const columns = parseCSVRow(row);
 
-                const [owner, phone, company, slaveId, deviceId, totalDatabased, product, status, notes] = cleanColumns;
+                if (columns.length < 4) {
+                    console.warn('Skipping invalid row (not enough columns):', row);
+                    continue;
+                }
 
-                if (!slaveId || !owner) continue; // Skip invalid rows
+                const [owner, phone, company, slaveId, deviceId, totalDatabasedStr, product, status, notes] = columns;
+
+                if (!slaveId || !owner) {
+                    console.warn('Skipping row missing slaveId or owner:', row);
+                    continue;
+                }
 
                 // Check if record exists
                 const existing = await prisma.deviceRecord.findUnique({
                     where: { slaveId },
                 });
 
+                const totalDatabased = parseInt(totalDatabasedStr) || 0;
+
                 const recordData = {
                     owner,
                     phone: phone || '',
-                    company,
+                    company: company || '',
                     slaveId,
                     deviceId: deviceId || '',
-                    totalDatabased: parseInt(totalDatabased) || 0,
-                    product,
-                    status,
+                    totalDatabased,
+                    product: product || '',
+                    status: status || '',
                     notes: notes || null,
                 };
 
@@ -212,10 +269,13 @@ export async function syncFromGoogleSheets() {
                     created++;
                 }
             } catch (rowError: any) {
+                console.error('Error processing row:', row, rowError);
                 errors++;
                 errorMessages.push(`Row error: ${rowError.message}`);
             }
         }
+
+        console.log(`Sync complete. Created: ${created}, Updated: ${updated}, Errors: ${errors}`);
 
         revalidatePath('/dashboard');
         revalidatePath('/dashboard/records');

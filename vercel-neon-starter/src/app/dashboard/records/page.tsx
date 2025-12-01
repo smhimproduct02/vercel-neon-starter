@@ -45,16 +45,20 @@ export default function DashboardPage() {
         const result = await syncFromGoogleSheets();
 
         if (result.success && result.data) {
-            const { created, updated, errors } = result.data;
-            setSyncMessage(`✅ Synced! Created: ${created}, Updated: ${updated}${errors > 0 ? `, Errors: ${errors}` : ''}`);
+            const { created, updated, errors, errorMessages } = result.data;
+            let msg = `✅ Synced! Created: ${created}, Updated: ${updated}`;
+            if (errors > 0) {
+                msg += `, Errors: ${errors}. First error: ${errorMessages[0]}`;
+            }
+            setSyncMessage(msg);
             await fetchRecords(); // Refresh the table
         } else {
             setSyncMessage(`❌ Sync failed: ${result.error}`);
         }
         setIsSyncing(false);
 
-        // Clear message after 5 seconds
-        setTimeout(() => setSyncMessage(null), 5000);
+        // Clear message after 10 seconds
+        setTimeout(() => setSyncMessage(null), 10000);
     };
 
     const handleDeleteClick = (record: DeviceRecord) => {
@@ -94,9 +98,11 @@ export default function DashboardPage() {
                             Manage your device records and status
                         </p>
                         {syncMessage && (
-                            <p className="text-sm mt-2 font-medium text-emerald-600 dark:text-emerald-400">
-                                {syncMessage}
-                            </p>
+                            <div className="mt-2">
+                                <p className={`text-sm font-medium ${syncMessage.startsWith('✅') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                    {syncMessage}
+                                </p>
+                            </div>
                         )}
                     </div>
                     <div className="flex gap-3">
