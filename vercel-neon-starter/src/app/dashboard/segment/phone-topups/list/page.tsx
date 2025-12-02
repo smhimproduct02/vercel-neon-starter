@@ -103,6 +103,9 @@ export default function PhoneTopUpList() {
         if (wsStatus.includes('Banned')) {
             return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
         }
+        if (wsStatus === 'Restricted') {
+            return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+        }
         return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
     };
 
@@ -219,6 +222,7 @@ export default function PhoneTopUpList() {
                             >
                                 <option value="All">All WS Status</option>
                                 <option value="Active">WS Active</option>
+                                <option value="Restricted">WS Restricted</option>
                                 <option value="Banned">WS Banned</option>
                                 <option value="Permanent Banned">Permanent Banned</option>
                             </select>

@@ -149,6 +149,7 @@ export default function PhoneTopUpForm({ initialData, isEdit = false }: PhoneTop
                     >
                         <option value="">Select Status</option>
                         <option value="Active">Active</option>
+                        <option value="Restricted">Restricted</option>
                         <option value="Banned">Banned</option>
                         <option value="Permanent Banned">Permanent Banned</option>
                     </select>
