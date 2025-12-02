@@ -35,18 +35,28 @@ export default function PhoneTopUpDashboard() {
     const handleSync = async () => {
         setIsSyncing(true);
         setSyncMessage(null);
-        const result = await syncPhoneTopUpsFromSheet();
 
-        if (result.success && result.data) {
-            const { created, updated, errors } = result.data;
-            setSyncMessage(`✅ Synced! Created: ${created}, Updated: ${updated}${errors > 0 ? `, Errors: ${errors}` : ''}`);
-            await fetchStats();
-        } else {
-            setSyncMessage(`❌ Sync failed: ${result.error}`);
+        try {
+            console.log('Starting sync from Google Sheet...');
+            const result = await syncPhoneTopUpsFromSheet();
+            console.log('Sync result:', result);
+
+            if (result.success && result.data) {
+                const { created, updated, errors } = result.data;
+                setSyncMessage(`✅ Synced! Created: ${created}, Updated: ${updated}${errors > 0 ? `, Errors: ${errors}` : ''}`);
+                await fetchStats();
+            } else {
+                const errorMsg = result.error || 'Unknown error occurred';
+                console.error('Sync failed:', errorMsg);
+                setSyncMessage(`❌ Sync failed: ${errorMsg}`);
+            }
+        } catch (error: any) {
+            console.error('Sync exception:', error);
+            setSyncMessage(`❌ Sync error: ${error.message || 'Unknown error'}`);
         }
-        setIsSyncing(false);
 
-        setTimeout(() => setSyncMessage(null), 5000);
+        setIsSyncing(false);
+        setTimeout(() => setSyncMessage(null), 10000); // Show error for 10 seconds
     };
 
     if (isLoading) {
