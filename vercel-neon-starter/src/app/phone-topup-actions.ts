@@ -2,6 +2,9 @@
 
 import prisma from '@/lib/prisma';
 
+// Allow up to 60 seconds for execution (Vercel Hobby limit is 10s, Pro is 300s)
+export const maxDuration = 60;
+
 export interface PhoneTopUpData {
     phoneNumber: string;
     simCardId?: number | null;
