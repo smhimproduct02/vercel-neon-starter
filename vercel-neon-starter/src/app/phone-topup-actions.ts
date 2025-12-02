@@ -33,10 +33,15 @@ export async function getPhoneTopUps(filters?: {
         }
 
         if (filters?.search) {
+            const searchInt = parseInt(filters.search);
             where.OR = [
                 { phoneNumber: { contains: filters.search, mode: 'insensitive' } },
                 { name: { contains: filters.search, mode: 'insensitive' } },
             ];
+
+            if (!isNaN(searchInt)) {
+                where.OR.push({ simCardId: searchInt });
+            }
         }
 
         const topUps = await prisma.phoneTopUp.findMany({
