@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getPhoneTopUpStats, syncPhoneTopUpsFromSheet, testDatabaseConnection } from '@/app/phone-topup-actions';
+import { getPhoneTopUpStats, syncPhoneTopUpsFromSheet, testDatabaseConnection, fixDatabaseSchema } from '@/app/phone-topup-actions';
 
 interface Stats {
     total: number;
@@ -18,6 +18,7 @@ export default function PhoneTopUpDashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncMessage, setSyncMessage] = useState<string | null>(null);
+    const [showFixButton, setShowFixButton] = useState(false);
 
     useEffect(() => {
         fetchStats();
@@ -34,18 +35,37 @@ export default function PhoneTopUpDashboard() {
 
     const handleTestConnection = async () => {
         setSyncMessage('Testing database connection...');
+        setShowFixButton(false);
         const result = await testDatabaseConnection();
         if (result.success) {
             setSyncMessage(`✅ Database connected! Found ${result.count} records.`);
         } else {
             setSyncMessage(`❌ Connection failed: ${result.error}`);
+            if (result.error?.includes('does not exist')) {
+                setShowFixButton(true);
+            }
         }
-        setTimeout(() => setSyncMessage(null), 5000);
+        if (!showFixButton) {
+            setTimeout(() => setSyncMessage(null), 5000);
+        }
+    };
+
+    const handleFixDatabase = async () => {
+        setSyncMessage('Fixing database schema...');
+        const result = await fixDatabaseSchema();
+        if (result.success) {
+            setSyncMessage('✅ Database fixed! Table created successfully.');
+            setShowFixButton(false);
+            await handleTestConnection();
+        } else {
+            setSyncMessage(`❌ Fix failed: ${result.error}`);
+        }
     };
 
     const handleSync = async () => {
         setIsSyncing(true);
         setSyncMessage('Syncing... (this may take a moment)');
+        setShowFixButton(false);
 
         try {
             console.log('Starting sync from Google Sheet...');
@@ -60,6 +80,9 @@ export default function PhoneTopUpDashboard() {
                 const errorMsg = result.error || 'Unknown error occurred';
                 console.error('Sync failed:', errorMsg);
                 setSyncMessage(`❌ Sync failed: ${errorMsg}`);
+                if (errorMsg.includes('does not exist')) {
+                    setShowFixButton(true);
+                }
             }
         } catch (error: any) {
             console.error('Sync exception:', error);
@@ -67,7 +90,9 @@ export default function PhoneTopUpDashboard() {
         }
 
         setIsSyncing(false);
-        setTimeout(() => setSyncMessage(null), 10000); // Show error for 10 seconds
+        if (!showFixButton) {
+            setTimeout(() => setSyncMessage(null), 10000);
+        }
     };
 
     if (isLoading) {
@@ -96,8 +121,18 @@ export default function PhoneTopUpDashboard() {
                             XoX SIM Card Management
                         </p>
                         {syncMessage && (
-                            <div className="mt-4 inline-flex items-center px-4 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-sm font-medium">
-                                {syncMessage}
+                            <div className="mt-4 flex items-center gap-3">
+                                <div className="inline-flex items-center px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium">
+                                    {syncMessage}
+                                </div>
+                                {showFixButton && (
+                                    <button
+                                        onClick={handleFixDatabase}
+                                        className="px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-sm animate-pulse"
+                                    >
+                                        Fix Database Now
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
