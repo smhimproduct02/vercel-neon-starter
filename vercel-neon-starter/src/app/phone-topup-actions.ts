@@ -20,6 +20,7 @@ export async function getPhoneTopUps(filters?: {
     status?: string;
     wsStatus?: string;
     search?: string;
+    searchField?: string; // 'all', 'phone', 'name', 'sim'
 }) {
     try {
         const where: any = {};
@@ -33,14 +34,30 @@ export async function getPhoneTopUps(filters?: {
         }
 
         if (filters?.search) {
-            const searchInt = parseInt(filters.search);
-            where.OR = [
-                { phoneNumber: { contains: filters.search, mode: 'insensitive' } },
-                { name: { contains: filters.search, mode: 'insensitive' } },
-            ];
+            const search = filters.search;
+            const field = filters.searchField || 'all';
+            const searchInt = parseInt(search);
 
-            if (!isNaN(searchInt)) {
-                where.OR.push({ simCardId: searchInt });
+            if (field === 'phone') {
+                where.phoneNumber = { contains: search, mode: 'insensitive' };
+            } else if (field === 'name') {
+                where.name = { contains: search, mode: 'insensitive' };
+            } else if (field === 'sim') {
+                if (!isNaN(searchInt)) {
+                    where.simCardId = searchInt;
+                } else {
+                    // If searching for SIM but not a number, return nothing or handle gracefully
+                    where.simCardId = -1; // Impossible ID
+                }
+            } else {
+                // 'all' behavior
+                where.OR = [
+                    { phoneNumber: { contains: search, mode: 'insensitive' } },
+                    { name: { contains: search, mode: 'insensitive' } },
+                ];
+                if (!isNaN(searchInt)) {
+                    where.OR.push({ simCardId: searchInt });
+                }
             }
         }
 

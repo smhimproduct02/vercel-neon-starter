@@ -23,24 +23,40 @@ export default function PhoneTopUpList() {
     const [isLoading, setIsLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('All');
     const [wsStatusFilter, setWsStatusFilter] = useState('All');
-    const [searchQuery, setSearchQuery] = useState('');
+
+    // Search State
+    const [searchInput, setSearchInput] = useState('');
+    const [searchField, setSearchField] = useState('all');
+    const [activeSearch, setActiveSearch] = useState({ query: '', field: 'all' });
+
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
     useEffect(() => {
         fetchTopUps();
-    }, [statusFilter, wsStatusFilter, searchQuery]);
+    }, [statusFilter, wsStatusFilter, activeSearch]);
 
     const fetchTopUps = async () => {
         setIsLoading(true);
         const { success, data } = await getPhoneTopUps({
             status: statusFilter,
             wsStatus: wsStatusFilter,
-            search: searchQuery,
+            search: activeSearch.query,
+            searchField: activeSearch.field,
         });
         if (success && data) {
             setTopUps(data as PhoneTopUp[]);
         }
         setIsLoading(false);
+    };
+
+    const handleSearchSubmit = () => {
+        setActiveSearch({ query: searchInput, field: searchField });
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleSearchSubmit();
+        }
     };
 
     const handleDelete = async (id: string) => {
@@ -101,7 +117,7 @@ export default function PhoneTopUpList() {
         return daysUntil >= 0 && daysUntil <= 7;
     };
 
-    if (isLoading) {
+    if (isLoading && topUps.length === 0) {
         return (
             <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
                 <div className="text-center">
@@ -151,40 +167,62 @@ export default function PhoneTopUpList() {
                     </div>
                 </div>
 
-                {/* Filters */}
+                {/* Filters & Search */}
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Search */}
-                        <input
-                            type="text"
-                            placeholder="Search by phone, name, or SIM ID..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        />
+                    <div className="flex flex-col md:flex-row gap-4">
+                        {/* Search Group */}
+                        <div className="flex-1 flex gap-2">
+                            <select
+                                value={searchField}
+                                onChange={(e) => setSearchField(e.target.value)}
+                                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[120px]"
+                            >
+                                <option value="all">All Fields</option>
+                                <option value="phone">Phone</option>
+                                <option value="name">Name</option>
+                                <option value="sim">SIM ID</option>
+                            </select>
+                            <div className="flex-1 relative">
+                                <input
+                                    type="text"
+                                    placeholder="Search..."
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                />
+                                <button
+                                    onClick={handleSearchSubmit}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-purple-600 transition-colors"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                </button>
+                            </div>
+                        </div>
 
-                        {/* Status Filter */}
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        >
-                            <option value="All">All Status</option>
-                            <option value="Active">Active</option>
-                            <option value="Terminated">Terminated</option>
-                        </select>
+                        {/* Status Filters */}
+                        <div className="flex gap-4">
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            >
+                                <option value="All">All Status</option>
+                                <option value="Active">Active</option>
+                                <option value="Terminated">Terminated</option>
+                            </select>
 
-                        {/* WS Status Filter */}
-                        <select
-                            value={wsStatusFilter}
-                            onChange={(e) => setWsStatusFilter(e.target.value)}
-                            className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        >
-                            <option value="All">All WS Status</option>
-                            <option value="Active">WS Active</option>
-                            <option value="Banned">WS Banned</option>
-                            <option value="Permanent Banned">Permanent Banned</option>
-                        </select>
+                            <select
+                                value={wsStatusFilter}
+                                onChange={(e) => setWsStatusFilter(e.target.value)}
+                                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            >
+                                <option value="All">All WS Status</option>
+                                <option value="Active">WS Active</option>
+                                <option value="Banned">WS Banned</option>
+                                <option value="Permanent Banned">Permanent Banned</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -195,7 +233,7 @@ export default function PhoneTopUpList() {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
-                                    <th className="p-4 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">ID</th>
+                                    <th className="p-4 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">SIM ID</th>
                                     <th className="p-4 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Phone Number</th>
                                     <th className="p-4 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Name</th>
                                     <th className="p-4 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Status</th>
@@ -208,7 +246,7 @@ export default function PhoneTopUpList() {
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                                 {topUps.map((topUp) => (
                                     <tr key={topUp.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                        <td className="p-4 text-sm text-slate-600 dark:text-slate-400 font-mono">{topUp.simCardId || '-'}</td>
+                                        <td className="p-4 text-sm font-mono text-slate-600 dark:text-slate-400 font-bold">{topUp.simCardId || '-'}</td>
                                         <td className="p-4 text-sm font-medium text-slate-900 dark:text-white">{topUp.phoneNumber}</td>
                                         <td className="p-4 text-sm text-slate-700 dark:text-slate-300">{topUp.name || '-'}</td>
                                         <td className="p-4">
@@ -265,7 +303,7 @@ export default function PhoneTopUpList() {
                                         <p className="text-sm text-slate-600 dark:text-slate-400">{topUp.name || 'No name'}</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs font-mono text-slate-400">#{topUp.simCardId || 'N/A'}</span>
+                                        <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">ID: {topUp.simCardId || 'N/A'}</span>
                                         <Link
                                             href={`/dashboard/segment/phone-topups/${topUp.id}/edit`}
                                             className="p-1.5 text-blue-600 bg-blue-50 dark:bg-blue-900/30 rounded-lg"
