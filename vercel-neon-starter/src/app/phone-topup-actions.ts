@@ -51,6 +51,24 @@ export async function getPhoneTopUps(filters?: {
     }
 }
 
+// Get a single phone top-up by ID
+export async function getPhoneTopUpById(id: string) {
+    try {
+        const topUp = await prisma.phoneTopUp.findUnique({
+            where: { id },
+        });
+
+        if (!topUp) {
+            return { success: false, error: 'Record not found' };
+        }
+
+        return { success: true, data: topUp };
+    } catch (error: any) {
+        console.error('Error fetching phone top-up:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 // Get dashboard statistics
 export async function getPhoneTopUpStats() {
     try {
@@ -191,6 +209,42 @@ export async function fixDatabaseSchema() {
         return { success: true };
     } catch (error: any) {
         console.error('Error fixing database schema:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// Generate CSV for Sheet Export
+export async function generateCSVForSheet() {
+    try {
+        const topUps = await prisma.phoneTopUp.findMany({
+            orderBy: { simCardId: 'asc' },
+        });
+
+        // Header matching the Google Sheet
+        const header = ['Phone Number', 'Sim Card ID', 'Name', 'Status', 'WS Status', 'TopUp Amount', 'TopUp Date', 'Renewal Date', 'Price', 'Notes'];
+
+        const rows = topUps.map(t => [
+            t.phoneNumber,
+            t.simCardId?.toString() || '',
+            t.name || '',
+            t.status,
+            t.wsStatus || '',
+            t.topUpAmount,
+            t.topUpDate ? new Date(t.topUpDate).toLocaleDateString('en-GB') : '', // DD/MM/YYYY
+            t.renewalDate ? new Date(t.renewalDate).toLocaleDateString('en-GB') : '',
+            t.price,
+            t.notes || ''
+        ]);
+
+        // Combine header and rows
+        const csvContent = [
+            header.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        return { success: true, data: csvContent };
+    } catch (error: any) {
+        console.error('Error generating CSV:', error);
         return { success: false, error: error.message };
     }
 }

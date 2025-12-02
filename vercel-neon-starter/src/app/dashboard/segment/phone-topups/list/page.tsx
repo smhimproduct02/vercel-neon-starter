@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getPhoneTopUps } from '@/app/phone-topup-actions';
+import { getPhoneTopUps, deletePhoneTopUp, generateCSVForSheet } from '@/app/phone-topup-actions';
 
 interface PhoneTopUp {
     id: string;
@@ -24,6 +24,7 @@ export default function PhoneTopUpList() {
     const [statusFilter, setStatusFilter] = useState('All');
     const [wsStatusFilter, setWsStatusFilter] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
+    const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
     useEffect(() => {
         fetchTopUps();
@@ -40,6 +41,36 @@ export default function PhoneTopUpList() {
             setTopUps(data as PhoneTopUp[]);
         }
         setIsLoading(false);
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this record?')) return;
+
+        setIsDeleting(id);
+        const result = await deletePhoneTopUp(id);
+        if (result.success) {
+            fetchTopUps();
+        } else {
+            alert('Failed to delete: ' + result.error);
+        }
+        setIsDeleting(null);
+    };
+
+    const handleExport = async () => {
+        const result = await generateCSVForSheet();
+        if (result.success && result.data) {
+            // Create a blob and download it
+            const blob = new Blob([result.data], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `phone_topups_export_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            alert('Failed to generate CSV: ' + result.error);
+        }
     };
 
     const getStatusBadge = (status: string) => {
@@ -102,6 +133,22 @@ export default function PhoneTopUpList() {
                             <span className="font-bold text-purple-600">{topUps.length}</span> records found
                         </p>
                     </div>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={handleExport}
+                            className="px-4 py-2 text-sm font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors shadow-sm flex items-center gap-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            Export for Sheet
+                        </button>
+                        <Link
+                            href="/dashboard/segment/phone-topups/add"
+                            className="px-4 py-2 text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-sm flex items-center gap-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                            Add New Record
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Filters */}
@@ -155,6 +202,7 @@ export default function PhoneTopUpList() {
                                     <th className="p-4 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">WS Status</th>
                                     <th className="p-4 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Last TopUp</th>
                                     <th className="p-4 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Renewal</th>
+                                    <th className="p-4 text-xs font-bold uppercase text-slate-500 dark:text-slate-400 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
@@ -182,6 +230,25 @@ export default function PhoneTopUpList() {
                                                 )}
                                             </div>
                                         </td>
+                                        <td className="p-4 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <Link
+                                                    href={`/dashboard/segment/phone-topups/${topUp.id}/edit`}
+                                                    className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                                    title="Edit"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                </Link>
+                                                <button
+                                                    onClick={() => handleDelete(topUp.id)}
+                                                    disabled={isDeleting === topUp.id}
+                                                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
+                                                    title="Delete"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -197,7 +264,15 @@ export default function PhoneTopUpList() {
                                         <p className="font-bold text-slate-900 dark:text-white">{topUp.phoneNumber}</p>
                                         <p className="text-sm text-slate-600 dark:text-slate-400">{topUp.name || 'No name'}</p>
                                     </div>
-                                    <span className="text-xs font-mono text-slate-400">#{topUp.simCardId || 'N/A'}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-mono text-slate-400">#{topUp.simCardId || 'N/A'}</span>
+                                        <Link
+                                            href={`/dashboard/segment/phone-topups/${topUp.id}/edit`}
+                                            className="p-1.5 text-blue-600 bg-blue-50 dark:bg-blue-900/30 rounded-lg"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                        </Link>
+                                    </div>
                                 </div>
                                 <div className="flex flex-wrap gap-2 mb-3">
                                     <span className={`px-2 py-1 rounded text-xs font-bold ${getStatusBadge(topUp.status)}`}>
