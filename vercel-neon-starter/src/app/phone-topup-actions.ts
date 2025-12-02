@@ -148,12 +148,27 @@ export async function deletePhoneTopUp(id: string) {
     }
 }
 
+// Test database connection
+export async function testDatabaseConnection() {
+    try {
+        const count = await prisma.phoneTopUp.count();
+        return { success: true, count };
+    } catch (error: any) {
+        console.error('Database connection error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 // Sync from Google Sheet
 export async function syncPhoneTopUpsFromSheet() {
     try {
         const sheetUrl = 'https://docs.google.com/spreadsheets/d/1T6M9kZnIi_Y3W3G9ln-PR1Wqt3Ms8bbRflgrOrmuE5o/export?format=csv';
 
+        console.log('Fetching CSV from Google Sheets...');
         const response = await fetch(sheetUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch sheet: ${response.statusText}`);
+        }
         const csvText = await response.text();
 
         // Parse CSV
@@ -191,33 +206,40 @@ export async function syncPhoneTopUpsFromSheet() {
             });
         }
 
-        // Upsert records (update if exists, create if not)
+        console.log(`Parsed ${records.length} records. Starting DB sync...`);
+
+        // Upsert records in parallel batches to avoid timeouts
         let created = 0;
         let updated = 0;
         let errors = 0;
 
-        for (const record of records) {
-            try {
-                const existing = await prisma.phoneTopUp.findUnique({
-                    where: { phoneNumber: record.phoneNumber },
-                });
-
-                if (existing) {
-                    await prisma.phoneTopUp.update({
+        // Process in batches of 10
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < records.length; i += BATCH_SIZE) {
+            const batch = records.slice(i, i + BATCH_SIZE);
+            await Promise.all(batch.map(async (record) => {
+                try {
+                    const existing = await prisma.phoneTopUp.findUnique({
                         where: { phoneNumber: record.phoneNumber },
-                        data: record,
                     });
-                    updated++;
-                } else {
-                    await prisma.phoneTopUp.create({
-                        data: record,
-                    });
-                    created++;
+
+                    if (existing) {
+                        await prisma.phoneTopUp.update({
+                            where: { phoneNumber: record.phoneNumber },
+                            data: record,
+                        });
+                        updated++;
+                    } else {
+                        await prisma.phoneTopUp.create({
+                            data: record,
+                        });
+                        created++;
+                    }
+                } catch (error) {
+                    console.error(`Error syncing record ${record.phoneNumber}:`, error);
+                    errors++;
                 }
-            } catch (error) {
-                console.error(`Error syncing record ${record.phoneNumber}:`, error);
-                errors++;
-            }
+            }));
         }
 
         return {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getPhoneTopUpStats, syncPhoneTopUpsFromSheet } from '@/app/phone-topup-actions';
+import { getPhoneTopUpStats, syncPhoneTopUpsFromSheet, testDatabaseConnection } from '@/app/phone-topup-actions';
 
 interface Stats {
     total: number;
@@ -32,9 +32,20 @@ export default function PhoneTopUpDashboard() {
         setIsLoading(false);
     };
 
+    const handleTestConnection = async () => {
+        setSyncMessage('Testing database connection...');
+        const result = await testDatabaseConnection();
+        if (result.success) {
+            setSyncMessage(`✅ Database connected! Found ${result.count} records.`);
+        } else {
+            setSyncMessage(`❌ Connection failed: ${result.error}`);
+        }
+        setTimeout(() => setSyncMessage(null), 5000);
+    };
+
     const handleSync = async () => {
         setIsSyncing(true);
-        setSyncMessage(null);
+        setSyncMessage('Syncing... (this may take a moment)');
 
         try {
             console.log('Starting sync from Google Sheet...');
@@ -91,6 +102,12 @@ export default function PhoneTopUpDashboard() {
                         )}
                     </div>
                     <div className="flex gap-3">
+                        <button
+                            onClick={handleTestConnection}
+                            className="px-4 py-3 text-sm font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 rounded-xl transition-all shadow-sm active:scale-95"
+                        >
+                            Test Connection
+                        </button>
                         <button
                             onClick={handleSync}
                             disabled={isSyncing}
